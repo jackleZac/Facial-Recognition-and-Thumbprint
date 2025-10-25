@@ -1,0 +1,805 @@
+classdef SmartIdentityMatcher < matlab.apps.AppBase
+    % Properties
+    properties (Access = public)
+        UIFigure matlab.ui.Figure
+        MainPanel matlab.ui.container.Panel
+        HeaderPanel matlab.ui.container.Panel
+        ControlPanel matlab.ui.container.Panel
+        DisplayPanel matlab.ui.container.Panel
+        InfoPanel matlab.ui.container.Panel
+        TitleLabel matlab.ui.control.Label
+        SubtitleLabel matlab.ui.control.Label
+        RegisterBtn matlab.ui.control.Button
+        ScanBtn matlab.ui.control.Button
+        IdentifyBtn matlab.ui.control.Button
+        ViewDatabaseBtn matlab.ui.control.Button
+        ScanImageAxes matlab.ui.control.UIAxes
+        FoundImageAxes matlab.ui.control.UIAxes
+        StatusLabel matlab.ui.control.Label
+        MatchLabel matlab.ui.control.Label
+        ConfidenceLabel matlab.ui.control.Label
+        DatabaseCountLabel matlab.ui.control.Label
+    end
+    
+    properties (Access = private)
+        faceDetector
+        userFaces = {};
+        userNames = {};
+        scanImage
+        dataFile = 'identityData.mat';
+        currentViewIndex = 1;
+    end
+        
+    methods (Access = private)
+        
+        % ========================================================================
+        % IMPROVED FACE DETECTION WITH QUALITY VALIDATION
+        % ========================================================================
+        
+        % Replace the detectAndCropFace function with this enhanced version
+        function [face, isValid, qualityReport] = detectAndCropFaceEnhanced(~, img, detector)
+            % Initialize output
+            face = [];
+            isValid = false;
+            qualityReport = struct();
+            
+            % Convert to RGB if grayscale
+            if size(img, 3) == 1
+                imgRGB = cat(3, img, img, img);
+            else
+                imgRGB = img;
+            end
+            
+            % Convert to grayscale for detection
+            if size(img, 3) == 3
+                grayImg = rgb2gray(img);
+            else
+                grayImg = img;
+            end
+            
+            % ==== IMPROVEMENT 1: Multi-scale face detection ====
+            % Detect faces at multiple scales for better accuracy
+            bbox = step(detector, grayImg);
+            
+            % ==== IMPROVEMENT 2: Validate face detection ====
+            if isempty(bbox)
+                qualityReport.error = 'No face detected';
+                qualityReport.faceCount = 0;
+                return;
+            end
+            
+            % ==== IMPROVEMENT 3: Handle multiple faces ====
+            numFaces = size(bbox, 1);
+            qualityReport.faceCount = numFaces;
+            
+            if numFaces > 1
+                % Find largest face (closest to camera)
+                areas = bbox(:, 3) .* bbox(:, 4);
+                [~, largestIdx] = max(areas);
+                bbox = bbox(largestIdx, :);
+                qualityReport.warning = sprintf('%d faces detected, using largest', numFaces);
+            end
+            
+            % ==== IMPROVEMENT 4: Validate face size ====
+            faceWidth = bbox(3);
+            faceHeight = bbox(4);
+            minSize = 50;  % Minimum face size in pixels
+            
+            if faceWidth < minSize || faceHeight < minSize
+                qualityReport.error = sprintf('Face too small (%dx%d pixels)', faceWidth, faceHeight);
+                return;
+            end
+            
+            % ==== IMPROVEMENT 5: Add padding around face ====
+            % Expand bbox by 20% to include more context
+            padding = 0.2;
+            x = max(1, bbox(1) - bbox(3) * padding);
+            y = max(1, bbox(2) - bbox(4) * padding);
+            w = min(size(img, 2) - x, bbox(3) * (1 + 2*padding));
+            h = min(size(img, 1) - y, bbox(4) * (1 + 2*padding));
+            expandedBbox = [x, y, w, h];
+            
+            % Crop the face
+            face = imcrop(imgRGB, expandedBbox);
+            
+            % ==== IMPROVEMENT 6: Image quality checks ====
+            
+            % 6.1 Check blur (Laplacian variance)
+            blurScore = estimateBlur(face);
+            qualityReport.blurScore = blurScore;
+            if blurScore < 100
+                qualityReport.warning = 'Image may be blurry';
+            end
+            
+            % 6.2 Check brightness
+            grayFace = rgb2gray(face);
+            brightness = mean(grayFace(:));
+            qualityReport.brightness = brightness;
+            if brightness < 40
+                qualityReport.warning = 'Image too dark';
+            elseif brightness > 220
+                qualityReport.warning = 'Image too bright/overexposed';
+            end
+            
+            % 6.3 Check contrast
+            contrast = std(double(grayFace(:)));
+            qualityReport.contrast = contrast;
+            if contrast < 30
+                qualityReport.warning = 'Low contrast image';
+            end
+            
+            % 6.4 Check resolution
+            [fh, fw, ~] = size(face);
+            qualityReport.resolution = [fh, fw];
+            if fh < 80 || fw < 80
+                qualityReport.error = 'Face resolution too low for reliable matching';
+                return;
+            end
+            
+            % ==== IMPROVEMENT 7: Detect facial landmarks for validation ====
+            try
+                % Verify face has key features
+                faceGray = rgb2gray(face);
+                
+                % Detect eyes using Viola-Jones
+                eyeDetector = vision.CascadeObjectDetector('EyePairBig');
+                eyeBbox = step(eyeDetector, faceGray);
+                
+                if ~isempty(eyeBbox)
+                    qualityReport.eyesDetected = true;
+                else
+                    qualityReport.warning = 'Eyes not clearly detected';
+                end
+            catch
+                qualityReport.eyesDetected = false;
+            end
+            
+            % ==== IMPROVEMENT 8: Overall quality score ====
+            qualityScore = 0;
+            
+            % Blur contribution (0-30 points)
+            if blurScore >= 200
+                qualityScore = qualityScore + 30;
+            elseif blurScore >= 100
+                qualityScore = qualityScore + 20;
+            else
+                qualityScore = qualityScore + 10;
+            end
+            
+            % Brightness contribution (0-25 points)
+            if brightness >= 80 && brightness <= 180
+                qualityScore = qualityScore + 25;
+            elseif brightness >= 60 && brightness <= 200
+                qualityScore = qualityScore + 15;
+            else
+                qualityScore = qualityScore + 5;
+            end
+            
+            % Contrast contribution (0-20 points)
+            if contrast >= 50
+                qualityScore = qualityScore + 20;
+            elseif contrast >= 30
+                qualityScore = qualityScore + 15;
+            else
+                qualityScore = qualityScore + 5;
+            end
+            
+            % Resolution contribution (0-15 points)
+            if fh >= 150 && fw >= 150
+                qualityScore = qualityScore + 15;
+            elseif fh >= 100 && fw >= 100
+                qualityScore = qualityScore + 10;
+            else
+                qualityScore = qualityScore + 5;
+            end
+            
+            % Eyes detected contribution (0-10 points)
+            if qualityReport.eyesDetected
+                qualityScore = qualityScore + 10;
+            end
+            
+            qualityReport.qualityScore = qualityScore;
+            qualityReport.qualityGrade = getQualityGrade(qualityScore);
+            
+            % ==== IMPROVEMENT 9: Set validation threshold ====
+            if qualityScore >= 60
+                isValid = true;
+                qualityReport.status = 'PASS';
+            else
+                isValid = false;
+                qualityReport.status = 'FAIL';
+                qualityReport.error = sprintf('Quality too low (Score: %d/100). Please use better quality image', qualityScore);
+            end
+        end
+
+        function saveData(app)
+            userFaces = app.userFaces;
+            userNames = app.userNames;
+            save(app.dataFile, 'userFaces', 'userNames');
+        end
+
+        function loadData(app)
+            if isfile(app.dataFile)
+                data = load(app.dataFile);
+                if isfield(data, 'userFaces')
+                    app.userFaces = data.userFaces;
+                    app.userNames = data.userNames;
+                end
+            end
+        end
+
+        function updateDatabaseCount(app)
+            count = length(app.userFaces);
+            app.DatabaseCountLabel.Text = sprintf('Database: %d identities', count);
+        end
+
+        % ========================================================================
+        % UPDATED REGISTRATION FUNCTION WITH QUALITY CHECKS
+        % ========================================================================
+        
+        function registerNewIdentity(app)
+            [file, path] = uigetfile({'*.jpg; *.png; *.jpeg'}, 'Register a new identity');
+            if isequal(file, 0)
+                return;
+            end
+            
+            try
+                img = imread(fullfile(path, file));
+                
+                % Use enhanced detection with quality checks
+                [face, isValid, qualityReport] = app.detectAndCropFaceEnhanced(img, app.faceDetector);
+                
+                % ==== CRITICAL: Check if face is valid ====
+                if ~isValid
+                    % Display detailed error message
+                    errorMsg = sprintf('Registration failed:\n%s\n\nQuality Score: %d/100 (%s)', ...
+                        qualityReport.error, qualityReport.qualityScore, qualityReport.qualityGrade);
+                    
+                    % Show quality report
+                    if isfield(qualityReport, 'blurScore')
+                        errorMsg = sprintf('%s\nBlur: %.1f %s', errorMsg, qualityReport.blurScore, ...
+                            getBlurStatus(qualityReport.blurScore));
+                    end
+                    if isfield(qualityReport, 'brightness')
+                        errorMsg = sprintf('%s\nBrightness: %.1f %s', errorMsg, qualityReport.brightness, ...
+                            getBrightnessStatus(qualityReport.brightness));
+                    end
+                    
+                    uialert(app.UIFigure, errorMsg, 'Quality Check Failed', 'Icon', 'warning');
+                    app.StatusLabel.Text = 'Registration failed - Image quality insufficient';
+                    app.StatusLabel.FontColor = [0.8 0.1 0.1];
+                    return;
+                end
+                
+                % ==== Show quality report for valid images ====
+                if qualityReport.qualityScore < 85
+                    warningMsg = sprintf('Image quality: %s (%d/100)\n%s\n\nContinue with registration?', ...
+                        qualityReport.qualityGrade, qualityReport.qualityScore, ...
+                        getQualityAdvice(qualityReport));
+                    
+                    choice = uiconfirm(app.UIFigure, warningMsg, 'Quality Warning', ...
+                        'Options', {'Register Anyway', 'Cancel'}, ...
+                        'DefaultOption', 2, 'Icon', 'warning');
+                    
+                    if strcmp(choice, 'Cancel')
+                        app.StatusLabel.Text = 'Registration cancelled by user';
+                        app.StatusLabel.FontColor = [0.9 0.5 0];
+                        return;
+                    end
+                end
+                
+                % Enhanced preprocessing for better matching
+                if size(face, 3) == 3
+                    faceGray = rgb2gray(face);
+                else
+                    faceGray = face;
+                end
+                
+                % Apply adaptive histogram equalization
+                faceEq = adapthisteq(faceGray, 'ClipLimit', 0.02);
+                
+                % Denoise
+                faceEq = wiener2(faceEq, [3 3]);
+                
+                % Resize to standard size
+                faceResized = imresize(faceEq, [80, 80]);
+                
+                % Store in database
+                app.userFaces{end+1} = faceResized;
+                [~, name, ~] = fileparts(file);
+                app.userNames{end+1} = name;
+                app.saveData();
+                app.updateDatabaseCount();
+                
+                % Success message with quality info
+                app.StatusLabel.Text = sprintf('✓ Identity registered: %s (Quality: %s)', ...
+                    name, qualityReport.qualityGrade);
+                app.StatusLabel.FontColor = [0 0.6 0.2];
+                
+            catch ME
+                app.StatusLabel.Text = sprintf('Registration failed: %s', ME.message);
+                app.StatusLabel.FontColor = [0.8 0.1 0.1];
+            end
+        end
+        
+        % Helper functions for quality reporting
+        function status = getBlurStatus(score)
+            if score >= 200
+                status = '(Sharp)';
+            elseif score >= 100
+                status = '(Acceptable)';
+            else
+                status = '(Blurry)';
+            end
+        end
+        
+        function status = getBrightnessStatus(brightness)
+            if brightness >= 80 && brightness <= 180
+                status = '(Good)';
+            elseif brightness < 40
+                status = '(Too Dark)';
+            elseif brightness > 220
+                status = '(Too Bright)';
+            else
+                status = '(Acceptable)';
+            end
+        end
+        
+        function advice = getQualityAdvice(report)
+            advice = '';
+            if report.blurScore < 100
+                advice = [advice, '• Use a sharper, focused image\n'];
+            end
+            if report.brightness < 40
+                advice = [advice, '• Image is too dark, use better lighting\n'];
+            elseif report.brightness > 220
+                advice = [advice, '• Image is overexposed, reduce lighting\n'];
+            end
+            if report.contrast < 30
+                advice = [advice, '• Low contrast, ensure good lighting conditions\n'];
+            end
+            if ~report.eyesDetected
+                advice = [advice, '• Ensure face is clearly visible and frontal\n'];
+            end
+            if isempty(advice)
+                advice = 'Image meets minimum requirements but could be better';
+            end
+        end
+
+        function scanIdentity(app)
+            [file, path] = uigetfile({'*.jpg; *.png; *.jpeg'}, 'Scan identity photo');
+            if isequal(file, 0)
+                return;
+            end
+            try
+                img = imread(fullfile(path, file));
+                face = app.detectAndCropFace(img, app.faceDetector);
+                
+                % Enhanced 
+                if size(face, 3) == 3
+                    faceGray = rgb2gray(face);
+                else
+                    faceGray = face;
+                end
+
+                % Apply histogram equalization for consistent lighting
+                faceEq = histeq(faceGray);
+                app.scanImage = imresize(faceEq, [80 80]);
+
+                % Display scan image with green border
+                imshow(face, 'Parent', app.ScanImageAxes);
+                app.ScanImageAxes.XColor = [0 0.7 0.3];
+                app.ScanImageAxes.YColor = [0 0.7 0.3];
+                app.ScanImageAxes.LineWidth = 3;
+                title(app.ScanImageAxes, 'Scanned Photo', 'FontSize', 14, 'Color', [0 0.6 0.2]);
+                app.StatusLabel.Text = 'Photo scanned successfully';
+                app.StatusLabel.FontColor = [0 0.6 0.2];
+
+                % Clear previous results
+                app.MatchLabel.Text = '';
+                app.ConfidenceLabel.Text = '';
+                cla(app.FoundImageAxes);
+                title(app.FoundImageAxes, 'Match result', 'FontSize', 14, 'Color', [0.3 0.3 0.3]);
+
+            catch ME
+                app.StatusLabel.Text = sprintf('Scan failed: %s', ME.message);
+                app.StatusLabel.FontColor = [0.8 0.1 0.1];
+
+            end
+        end
+
+        function performIdentification(app)
+            if isempty(app.scanImage)
+                app.StatusLabel.Text = 'Please scan a photo first';
+                app.StatusLabel.FontColor = [0.9 0.5 0];
+                return;
+            end
+        
+            % Check if database is empty
+            if isempty(app.userFaces)
+                app.StatusLabel.Text = 'No match detected. Database is empty';
+                app.StatusLabel.FontColor = [0.8 0.1 0.1];
+                app.MatchLabel.Text = 'NO MATCH DETECTED';
+                app.MatchLabel.FontColor = [0.8 0.1 0.1];
+                app.ConfidenceLabel.Text = 'Confidence: 0.0%';
+                cla(app.FoundImageAxes);
+                title(app.FoundImageAxes, 'Match Result - Empty', 'FontSize', 14, 'Color', [0.8 0.1 0.1]);
+                app.FoundImageAxes.XColor = [0.8 0.1 0.1];
+                app.FoundImageAxes.YColor = [0.8 0.1 0.1];
+                app.FoundImageAxes.LineWidth = 3;
+                return;
+            end
+        
+            % Show processing indicator
+            app.StatusLabel.Text = 'Processing identification...';
+            app.StatusLabel.FontColor = [0.2 0.4 0.8];
+            drawnow;
+        
+            % Enhanced matching with multiple techniques
+            scores = zeros(1, length(app.userFaces));
+            
+            for i = 1:length(app.userFaces)
+                % ==== IMPROVEMENT 1: HOG Features (Histogram of Oriented Gradients) ====
+                try
+                    hogScan = extractHOGFeatures(app.scanImage);
+                    hogDb = extractHOGFeatures(app.userFaces{i});
+                    % Cosine similarity between HOG features
+                    hogScore = dot(hogScan, hogDb) / (norm(hogScan) * norm(hogDb));
+                    hogScore = max(0, hogScore); % Ensure non-negative
+                catch
+                    hogScore = 0;
+                end
+                
+                % ==== IMPROVEMENT 2: SURF Features (More robust than pixel comparison) ====
+                try
+                    pointsScan = detectSURFFeatures(app.scanImage);
+                    pointsDb = detectSURFFeatures(app.userFaces{i});
+                    [featuresScan, validPointsScan] = extractFeatures(app.scanImage, pointsScan);
+                    [featuresDb, validPointsDb] = extractFeatures(app.userFaces{i}, pointsDb);
+                    
+                    if ~isempty(featuresScan) && ~isempty(featuresDb)
+                        indexPairs = matchFeatures(featuresScan, featuresDb, 'MaxRatio', 0.7);
+                        matchRatio = size(indexPairs, 1) / min(size(featuresScan, 1), size(featuresDb, 1));
+                        surfScore = min(1, matchRatio * 2); % Scale to 0-1
+                    else
+                        surfScore = 0;
+                    end
+                catch
+                    surfScore = 0;
+                end
+                
+                % ==== IMPROVEMENT 3: SSIM (Structural Similarity) - Better than correlation ====
+                ssimScore = ssim(app.scanImage, app.userFaces{i});
+                
+                % ==== IMPROVEMENT 4: Multi-scale matching ====
+                % Test at different scales for robustness
+                scales = [0.8, 1.0, 1.2];
+                scaleScores = zeros(1, length(scales));
+                for s = 1:length(scales)
+                    try
+                        scaledScan = imresize(app.scanImage, scales(s));
+                        scaledDb = imresize(app.userFaces{i}, size(scaledScan));
+                        scaleScores(s) = ssim(scaledScan, scaledDb);
+                    catch
+                        scaleScores(s) = 0;
+                    end
+                end
+                multiScaleScore = max(scaleScores);
+                
+                % ==== IMPROVEMENT 5: Local Binary Patterns (Texture analysis) ====
+                try
+                    lbpScan = extractLBPFeatures(app.scanImage);
+                    lbpDb = extractLBPFeatures(app.userFaces{i});
+                    lbpScore = 1 - (norm(lbpScan - lbpDb) / sqrt(length(lbpScan)));
+                    lbpScore = max(0, min(1, lbpScore));
+                catch
+                    lbpScore = 0;
+                end
+                
+                % ==== IMPROVEMENT 6: Enhanced histogram comparison ====
+                hist1 = imhist(app.scanImage);
+                hist2 = imhist(app.userFaces{i});
+                histScore = 1 - app.chi2Distance(hist1, hist2);
+                
+                % ==== IMPROVEMENT 7: Edge similarity with multiple detectors ====
+                edgeCanny1 = edge(app.scanImage, 'canny');
+                edgeCanny2 = edge(app.userFaces{i}, 'canny');
+                edgeScore = sum(edgeCanny1(:) & edgeCanny2(:)) / sum(edgeCanny1(:) | edgeCanny2(:));
+                
+                % ==== WEIGHTED ENSEMBLE - Optimized weights ====
+                % Give more weight to feature-based methods
+                scores(i) = (hogScore * 0.25) + ...      % HOG features
+                            (surfScore * 0.20) + ...     % SURF keypoints
+                            (ssimScore * 0.20) + ...     % Structural similarity
+                            (multiScaleScore * 0.15) + ...% Multi-scale robustness
+                            (lbpScore * 0.10) + ...      % Texture patterns
+                            (histScore * 0.05) + ...     % Histogram
+                            (edgeScore * 0.05);          % Edges
+            end
+            
+            [maxScore, bestIdx] = max(scores);
+            
+            % ==== IMPROVEMENT 8: Better confidence calculation ====
+            % Calculate confidence with more sophisticated approach
+            confidence = maxScore * 100;
+            
+            % Calculate second-best score for discrimination
+            sortedScores = sort(scores, 'descend');
+            if length(sortedScores) > 1
+                secondBest = sortedScores(2);
+                discrimination = (maxScore - secondBest) / maxScore * 100;
+                
+                % Boost confidence if there's clear separation from second-best
+                if discrimination > 20
+                    confidence = confidence * 1.1;
+                end
+            end
+            
+            confidence = min(100, confidence);
+            
+            % ==== IMPROVEMENT 9: Adaptive threshold ====
+            % Use dynamic threshold based on database size and score distribution
+            baseThreshold = 70;
+            
+            % Adjust threshold based on score distribution
+            scoreStd = std(scores);
+            if scoreStd < 0.1  % All scores very similar
+                adaptiveThreshold = baseThreshold + 10;
+            else
+                adaptiveThreshold = baseThreshold;
+            end
+            
+            % Display results with adaptive threshold
+            if confidence >= adaptiveThreshold
+                app.MatchLabel.Text = sprintf('IDENTIFIED: %s', app.userNames{bestIdx});
+                app.MatchLabel.FontColor = [0 0.6 0.2];
+                
+                % Different message based on confidence level
+                if confidence >= 90
+                    app.StatusLabel.Text = 'Strong match - Very high confidence';
+                elseif confidence >= 80
+                    app.StatusLabel.Text = 'Good match - High confidence';
+                else
+                    app.StatusLabel.Text = 'Possible match - Moderate confidence';
+                end
+                app.StatusLabel.FontColor = [0 0.6 0.2];
+                borderColor = [0 0.7 0.3];
+                
+                % Show matched identity with green border
+                imshow(app.userFaces{bestIdx}, 'Parent', app.FoundImageAxes);
+                app.FoundImageAxes.XColor = borderColor;
+                app.FoundImageAxes.YColor = borderColor;
+                app.FoundImageAxes.LineWidth = 3;
+                title(app.FoundImageAxes, sprintf('Found: %s', app.userNames{bestIdx}), ...
+                    'FontSize', 14, 'Color', borderColor);
+            else
+                % No match found - display empty result
+                app.MatchLabel.Text = 'NO MATCH DETECTED';
+                app.MatchLabel.FontColor = [0.8 0.1 0.1];
+                app.StatusLabel.Text = sprintf('No confident match (Best: %.1f%% < %.1f%% threshold)', ...
+                    confidence, adaptiveThreshold);
+                app.StatusLabel.FontColor = [0.8 0.1 0.1];
+                
+                % Clear the match result display
+                cla(app.FoundImageAxes);
+                title(app.FoundImageAxes, 'Match Result - No Match', 'FontSize', 14, 'Color', [0.8 0.1 0.1]);
+                app.FoundImageAxes.XColor = [0.8 0.1 0.1];
+                app.FoundImageAxes.YColor = [0.8 0.1 0.1];
+                app.FoundImageAxes.LineWidth = 3;
+            end
+            
+            app.ConfidenceLabel.Text = sprintf('Confidence: %.1f%% | Method: Ensemble', confidence);
+        end
+        
+        % A helper function for advanced preprocessing
+        function enhancedImg = advancedPreprocess(~, img)
+            % Convert to grayscale if needed
+            if size(img, 3) == 3
+                img = rgb2gray(img);
+            end
+            
+            % 1. Adaptive histogram equalization (better than regular histeq)
+            img = adapthisteq(img, 'ClipLimit', 0.02);
+            
+            % 2. Denoise
+            img = wiener2(img, [5 5]);
+            
+            % 3. Normalize illumination
+            img = double(img);
+            img = (img - min(img(:))) / (max(img(:)) - min(img(:))) * 255;
+            img = uint8(img);
+            
+            % 4. Sharpen slightly
+            kernel = [0 -1 0; -1 5 -1; 0 -1 0];
+            img = imfilter(img, kernel, 'replicate');
+            
+            enhancedImg = img;
+        end
+
+        function chi2Dist = chi2Distance(~, h1, h2)
+            % Chi-squared distance for histogram comparison
+            chi2Dist = 0.5 * sum(((h1 - h2).^2) ./ (h1 + h2 + eps));
+            chi2Dist = chi2Dist / length(h1); % Normalize
+        end
+
+        function viewDatabase(app)
+            if isempty(app.userFaces)
+                app.StatusLabel.Text = 'Database is empty';
+                app.StatusLabel.FontColor = [0.9 0.5 0];
+            return;
+            end
+            
+            % Cycle through database entries
+            if app.currentViewIndex > length(app.userFaces)
+                app.currentViewIndex = 1;
+            end
+
+            % Show current database entry
+            imshow(app.userFaces{app.currentViewIndex}, 'Parent', app.FoundImageAxes);
+            app.FoundImageAxes.XColor = [0.2 0.4 0.8];
+            app.FoundImageAxes.YColor = [0.2 0.4 0.8];
+            app.FoundImageAxes.LineWidth = 3;
+            title(app.FoundImageAxes, sprintf('📁 Database (%d/%d): %s', ...
+            app.currentViewIndex, length(app.userFaces), app.userNames{app.currentViewIndex}), ...
+            'FontSize', 14, 'Color', [0.2 0.4 0.8]);
+            app.StatusLabel.FontColor = [0.2 0.4 0.8];
+            % Increment for next view
+            app.currentViewIndex = app.currentViewIndex + 1;
+            end
+    end
+
+    % Callbacks
+    methods (Access = private)
+        function startupFcn(app)
+            app.faceDetector = vision.CascadeObjectDetector();
+            app.loadData();
+            app.updateDatabaseCount();
+            app.StatusLabel.Text = 'System ready for identity matching';
+            app.StatusLabel.FontColor = [0.2 0.4 0.8];
+        end
+        function RegisterBtnPushed(app, ~)
+            app.registerNewIdentity();
+        end
+        function ScanBtnPushed(app, ~)
+            app.scanIdentity();
+        end
+        function IdentifyBtnPushed(app, ~)
+            app.performIdentification();
+        end
+        function ViewDatabaseBtnPushed(app, ~)
+            app.viewDatabase();
+        end
+    end
+
+    % Component initialization
+    methods (Access = private)
+        function createComponents(app)
+            % Main Figure with gradient-like background
+            app.UIFigure = uifigure('Position', [100 100 1000 650]);
+            app.UIFigure.Name = 'Smart Identity Matcher';
+
+            app.UIFigure.Color = [0.92 0.94 0.98];
+            % Main Panel
+            app.MainPanel = uipanel(app.UIFigure);
+            app.MainPanel.Position = [15 15 970 620];
+            app.MainPanel.BackgroundColor = [1 1 1];
+            app.MainPanel.BorderType = 'none';
+            % Header Panel - Dark theme
+            app.HeaderPanel = uipanel(app.MainPanel);
+            app.HeaderPanel.Position = [20 520 930 80];
+            app.HeaderPanel.BackgroundColor = [0.15 0.25 0.45];
+            app.HeaderPanel.BorderType = 'none';
+            % Title and Subtitle
+            app.TitleLabel = uilabel(app.HeaderPanel);
+            app.TitleLabel.Position = [30 35 870 30];
+            app.TitleLabel.Text = 'SMART IDENTITY MATCHER';
+            app.TitleLabel.FontSize = 22;
+            app.TitleLabel.FontWeight = 'bold';
+            app.TitleLabel.FontColor = [1 1 1];
+            app.TitleLabel.HorizontalAlignment = 'center';
+            app.SubtitleLabel = uilabel(app.HeaderPanel);
+            app.SubtitleLabel.Position = [30 10 870 20];
+            app.SubtitleLabel.Text = 'Advanced Identity Recognition & Database System';
+            
+            app.SubtitleLabel.FontSize = 12;
+            app.SubtitleLabel.FontColor = [0.8 0.85 0.9];
+            app.SubtitleLabel.HorizontalAlignment = 'center';
+            % Control Panel - Light theme
+            app.ControlPanel = uipanel(app.MainPanel);
+            app.ControlPanel.Position = [20 450 930 60];
+            app.ControlPanel.BackgroundColor = [0.95 0.97 1];
+            app.ControlPanel.BorderType = 'line';
+            % Redesigned Buttons
+            app.RegisterBtn = uibutton(app.ControlPanel, 'push');
+            app.RegisterBtn.Position = [50 15 160 30];
+            app.RegisterBtn.Text = 'Register Identity';
+            app.RegisterBtn.FontSize = 11;
+            app.RegisterBtn.BackgroundColor = [0.2 0.7 0.4];
+            app.RegisterBtn.FontColor = [1 1 1];
+            
+            app.RegisterBtn.ButtonPushedFcn = createCallbackFcn(app, @RegisterBtnPushed, true);
+            app.ScanBtn = uibutton(app.ControlPanel, 'push');
+            app.ScanBtn.Position = [240 15 160 30];
+            app.ScanBtn.Text = 'Scan Photo';
+            app.ScanBtn.FontSize = 11;
+            app.ScanBtn.BackgroundColor = [0.15 0.5 0.85];
+            app.ScanBtn.FontColor = [1 1 1];
+
+            app.ScanBtn.ButtonPushedFcn = createCallbackFcn(app, @ScanBtnPushed, true);
+            app.IdentifyBtn = uibutton(app.ControlPanel, 'push');
+            app.IdentifyBtn.Position = [430 15 160 30];
+            app.IdentifyBtn.Text = 'Identify';
+            app.IdentifyBtn.FontSize = 11;
+            app.IdentifyBtn.BackgroundColor = [0.85 0.3 0.15];
+            app.IdentifyBtn.FontColor = [1 1 1];
+            app.IdentifyBtn.ButtonPushedFcn = createCallbackFcn(app, @IdentifyBtnPushed, true);
+
+            app.ViewDatabaseBtn = uibutton(app.ControlPanel, 'push');
+            app.ViewDatabaseBtn.Position = [620 15 160 30];
+            app.ViewDatabaseBtn.Text = 'View Database';
+            app.ViewDatabaseBtn.FontSize = 11;
+            app.ViewDatabaseBtn.BackgroundColor = [0.6 0.4 0.8];
+            app.ViewDatabaseBtn.FontColor = [1 1 1];
+            app.ViewDatabaseBtn.ButtonPushedFcn = createCallbackFcn(app, @ViewDatabaseBtnPushed, true);
+            % Display Panel - Enhanced layout
+            app.DisplayPanel = uipanel(app.MainPanel);
+            app.DisplayPanel.Position = [20 120 930 320];
+            app.DisplayPanel.BackgroundColor = [0.98 0.99 1];
+            app.DisplayPanel.BorderType = 'line';
+
+            % Enhanced Image Axes
+            app.ScanImageAxes = uiaxes(app.DisplayPanel);
+            app.ScanImageAxes.Position = [60 60 380 200];
+            title(app.ScanImageAxes, 'Scanned Photo', 'FontSize', 14, 'Color', [0.3 0.3 0.3]);
+            app.ScanImageAxes.XTick = [];
+            app.ScanImageAxes.YTick = [];
+
+            app.ScanImageAxes.Box = 'on';
+            app.FoundImageAxes = uiaxes(app.DisplayPanel);
+            app.FoundImageAxes.Position = [490 60 380 200];
+            title(app.FoundImageAxes, 'Match Result', 'FontSize', 14, 'Color', [0.3 0.3 0.3]);
+            app.FoundImageAxes.XTick = [];
+            app.FoundImageAxes.YTick = [];
+            app.FoundImageAxes.Box = 'on';
+            % Enhanced Info Panel
+            app.InfoPanel = uipanel(app.MainPanel);
+            app.InfoPanel.Position = [20 20 930 90];
+            app.InfoPanel.BackgroundColor = [0.96 0.98 0.96];
+            app.InfoPanel.BorderType = 'line';
+            % Enhanced Status Labels
+            app.StatusLabel = uilabel(app.InfoPanel);
+            app.StatusLabel.Position = [30 55 870 20];
+            app.StatusLabel.Text = 'System initializing...';
+            app.StatusLabel.FontSize = 13;
+            app.StatusLabel.FontWeight = 'bold';
+            app.MatchLabel = uilabel(app.InfoPanel);
+            app.MatchLabel.Position = [30 30 600 20];
+            app.MatchLabel.Text = '';
+            app.MatchLabel.FontSize = 15;
+            app.MatchLabel.FontWeight = 'bold';
+            app.ConfidenceLabel = uilabel(app.InfoPanel);
+            app.ConfidenceLabel.Position = [30 5 400 20];
+            app.ConfidenceLabel.Text = '';
+            app.ConfidenceLabel.FontSize = 12;
+            app.ConfidenceLabel.FontColor = [0.4 0.4 0.4];
+            app.DatabaseCountLabel = uilabel(app.InfoPanel);
+            app.DatabaseCountLabel.Position = [650 5 250 20];
+            app.DatabaseCountLabel.Text = 'Database: 0 identities';
+            app.DatabaseCountLabel.FontSize = 12;
+            app.DatabaseCountLabel.FontColor = [0.2 0.4 0.8];
+            app.DatabaseCountLabel.HorizontalAlignment = 'right';
+            end
+    end
+
+    % App creation and deletion
+    methods (Access = public)
+        function app = SmartIdentityMatcher
+            createComponents(app)
+            registerApp(app, app.UIFigure)
+            runStartupFcn(app, @startupFcn)
+        end
+        function delete(app)
+            delete(app.UIFigure)
+        end
+    end
+end
