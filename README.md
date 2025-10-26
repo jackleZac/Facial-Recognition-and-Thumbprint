@@ -51,18 +51,18 @@ A sophisticated facial recognition system built in MATLAB that can identify indi
 
 1. **Clone or download** this repository:
 ```bash
-git clone https://github.com/yourusername/smart-identity-matcher.git
-cd smart-identity-matcher
+git clone https://github.com/jackleZac/Facial-Recognition-and-Thumbprint.git
+cd Facial-Recognition-and-Thumbprint
 ```
 
 2. **Add to MATLAB path**:
 ```matlab
-addpath('path/to/smart-identity-matcher')
+addpath('path/to/Facial-Recognition-and-Thumbprint')
 ```
 
 3. **Launch the application**:
 ```matlab
-app = SmartIdentityMatcher2
+app = FacialRecognition
 ```
 
 ## 📖 Usage Guide
@@ -238,7 +238,7 @@ if qualityScore >= 50  % Increase for stricter quality requirements
 ```
 smart-identity-matcher/
 ├── images                      # Store your images here
-├── SmartIdentityMatcher2.m     # Main application class
+├── FacialRecognition.m         # Main application class
 ├── identityData.mat            # Database file (auto-generated)
 └── README.md                   # This file
 ```
@@ -312,12 +312,23 @@ Your Name - [GitHub Profile](https://github.com/yourusername)
 - Viola-Jones face detection algorithm
 - Open-source computer vision community
 
-## 📞 Support
-
-For issues, questions, or contributions:
-- Open an issue on GitHub
-- Contact: your.email@example.com
-
 ---
+
+## User Interface
+**Step 1**: Run the main file
+<img width="1194" height="802" alt="ui-1" src="https://github.com/user-attachments/assets/19ea4929-f422-42ae-bbf4-0b69b517ef6a" />
+
+**Step 2**: Register an identity and view database to confirm 
+<img width="1192" height="804" alt="ui-2" src="https://github.com/user-attachments/assets/35d504a5-166e-4ec1-98a3-5479279bbe3b" />
+
+**Step 3**: Choose a different image of the same person and click 'Scan Photo'
+<img width="1191" height="804" alt="ui-3" src="https://github.com/user-attachments/assets/9756be8e-1be5-4789-9135-397013ad96ef" />
+
+**Step 4**: Click 'Identify'. It should return 'Identified'
+<img width="1192" height="805" alt="ui-4" src="https://github.com/user-attachments/assets/90b76c67-5ef3-4064-a10c-079834c1f4c2" />
+
+**Step 5**: Try again with an image of different person. It should return 'No match detected'
+<img width="1195" height="801" alt="ui-5" src="https://github.com/user-attachments/assets/2357f695-f997-4688-b484-246f30d20a62" />
+
 
 **Note**: This system is designed for educational and research purposes. For production facial recognition systems, consider additional factors including privacy laws, consent requirements, and bias mitigation strategies.
