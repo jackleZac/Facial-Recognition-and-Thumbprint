@@ -1,4 +1,4 @@
-classdef SmartIdentityMatcher2 < matlab.apps.AppBase
+classdef FacialRecognition < matlab.apps.AppBase
     % Properties
     properties (Access = public)
         UIFigure matlab.ui.Figure
@@ -368,7 +368,7 @@ classdef SmartIdentityMatcher2 < matlab.apps.AppBase
                     
                     uialert(app.UIFigure, errorMsg, 'Quality Check Failed', 'Icon', 'warning');
                     app.StatusLabel.Text = 'Registration failed - Image quality insufficient';
-                    app.StatusLabel.FontColor = [0.8 0.1 0.1];
+                    app.StatusLabel.FontColor = [1 0.4 0.4];
                     return;
                 end
                 
@@ -383,7 +383,7 @@ classdef SmartIdentityMatcher2 < matlab.apps.AppBase
                     
                     if strcmp(choice, 'Cancel')
                         app.StatusLabel.Text = 'Registration cancelled by user';
-                        app.StatusLabel.FontColor = [0.9 0.5 0];
+                        app.StatusLabel.FontColor = [1 0.7 0.3];
                         return;
                     end
                 end
@@ -412,11 +412,11 @@ classdef SmartIdentityMatcher2 < matlab.apps.AppBase
                 
                 app.StatusLabel.Text = sprintf('✓ Identity registered: %s (Quality: %s)', ...
                     name, qualityReport.qualityGrade);
-                app.StatusLabel.FontColor = [0 0.6 0.2];
+                app.StatusLabel.FontColor = [0.4 1 0.6];
                 
             catch ME
                 app.StatusLabel.Text = sprintf('Registration failed: %s', ME.message);
-                app.StatusLabel.FontColor = [0.8 0.1 0.1];
+                app.StatusLabel.FontColor = [1 0.4 0.4];
             end
         end
 
@@ -435,7 +435,7 @@ classdef SmartIdentityMatcher2 < matlab.apps.AppBase
                     
                     uialert(app.UIFigure, errorMsg, 'Quality Check Failed', 'Icon', 'warning');
                     app.StatusLabel.Text = 'Scan failed - Image quality insufficient';
-                    app.StatusLabel.FontColor = [0.8 0.1 0.1];
+                    app.StatusLabel.FontColor = [1 0.4 0.4];
                     return;
                 end
                 
@@ -449,7 +449,7 @@ classdef SmartIdentityMatcher2 < matlab.apps.AppBase
                     
                     if strcmp(choice, 'Cancel')
                         app.StatusLabel.Text = 'Scan cancelled by user';
-                        app.StatusLabel.FontColor = [0.9 0.5 0];
+                        app.StatusLabel.FontColor = [1 0.7 0.3];
                         return;
                     end
                 end
@@ -469,48 +469,48 @@ classdef SmartIdentityMatcher2 < matlab.apps.AppBase
                 app.scanImage = imresize(faceEq, [80 80]);
         
                 imshow(face, 'Parent', app.ScanImageAxes);
-                app.ScanImageAxes.XColor = [0 0.7 0.3];
-                app.ScanImageAxes.YColor = [0 0.7 0.3];
+                app.ScanImageAxes.XColor = [0.3 0.8 0.5];
+                app.ScanImageAxes.YColor = [0.3 0.8 0.5];
                 app.ScanImageAxes.LineWidth = 3;
                 title(app.ScanImageAxes, sprintf('Scanned Photo (Quality: %s)', qualityReport.qualityGrade), ...
-                    'FontSize', 14, 'Color', [0 0.6 0.2]);
+                    'FontSize', 14, 'Color', [0.4 1 0.6]);
                 app.StatusLabel.Text = sprintf('Photo scanned - Quality: %s. Ready to identify.', qualityReport.qualityGrade);
-                app.StatusLabel.FontColor = [0 0.6 0.2];
+                app.StatusLabel.FontColor = [0.4 1 0.6];
         
                 app.MatchLabel.Text = '';
                 app.ConfidenceLabel.Text = '';
                 cla(app.FoundImageAxes);
-                title(app.FoundImageAxes, 'Match result', 'FontSize', 14, 'Color', [0.3 0.3 0.3]);
+                title(app.FoundImageAxes, 'Match result', 'FontSize', 14, 'Color', [0.7 0.7 0.7]);
         
             catch ME
                 app.StatusLabel.Text = sprintf('Scan failed: %s', ME.message);
-                app.StatusLabel.FontColor = [0.8 0.1 0.1];
+                app.StatusLabel.FontColor = [1 0.4 0.4];
             end
         end
 
         function performIdentification(app)
             if isempty(app.scanImage) || isempty(app.scanFeatures)
                 app.StatusLabel.Text = 'Please scan a photo first';
-                app.StatusLabel.FontColor = [0.9 0.5 0];
+                app.StatusLabel.FontColor = [1 0.7 0.3];
                 return;
             end
         
             if isempty(app.userFaces)
                 app.StatusLabel.Text = 'No match detected. Database is empty';
-                app.StatusLabel.FontColor = [0.8 0.1 0.1];
+                app.StatusLabel.FontColor = [1 0.4 0.4];
                 app.MatchLabel.Text = 'NO MATCH DETECTED';
-                app.MatchLabel.FontColor = [0.8 0.1 0.1];
+                app.MatchLabel.FontColor = [1 0.4 0.4];
                 app.ConfidenceLabel.Text = 'Confidence: 0.0%';
                 cla(app.FoundImageAxes);
-                title(app.FoundImageAxes, 'Match Result - Empty', 'FontSize', 14, 'Color', [0.8 0.1 0.1]);
-                app.FoundImageAxes.XColor = [0.8 0.1 0.1];
-                app.FoundImageAxes.YColor = [0.8 0.1 0.1];
+                title(app.FoundImageAxes, 'Match Result - Empty', 'FontSize', 14, 'Color', [1 0.4 0.4]);
+                app.FoundImageAxes.XColor = [1 0.4 0.4];
+                app.FoundImageAxes.YColor = [1 0.4 0.4];
                 app.FoundImageAxes.LineWidth = 3;
                 return;
             end
         
             app.StatusLabel.Text = 'Processing identification using deep features...';
-            app.StatusLabel.FontColor = [0.2 0.4 0.8];
+            app.StatusLabel.FontColor = [0.4 0.7 1];
             drawnow;
         
             % Compare using deep features
@@ -529,14 +529,14 @@ classdef SmartIdentityMatcher2 < matlab.apps.AppBase
             if maxSimilarity < ABSOLUTE_MIN_SIMILARITY
                 % This person is definitely NOT in the database
                 app.MatchLabel.Text = 'NO MATCH DETECTED';
-                app.MatchLabel.FontColor = [0.8 0.1 0.1];
+                app.MatchLabel.FontColor = [1 0.4 0.4];
                 app.StatusLabel.Text = sprintf('Unknown person (Best match only %.1f%% - too low)', maxSimilarity * 100);
-                app.StatusLabel.FontColor = [0.8 0.1 0.1];
+                app.StatusLabel.FontColor = [1 0.4 0.4];
                 
                 cla(app.FoundImageAxes);
-                title(app.FoundImageAxes, 'Unknown Person', 'FontSize', 14, 'Color', [0.8 0.1 0.1]);
-                app.FoundImageAxes.XColor = [0.8 0.1 0.1];
-                app.FoundImageAxes.YColor = [0.8 0.1 0.1];
+                title(app.FoundImageAxes, 'Unknown Person', 'FontSize', 14, 'Color', [1 0.4 0.4]);
+                app.FoundImageAxes.XColor = [1 0.4 0.4];
+                app.FoundImageAxes.YColor = [1 0.4 0.4];
                 app.FoundImageAxes.LineWidth = 3;
                 
                 app.ConfidenceLabel.Text = sprintf('All matches below %.0f%% threshold', ABSOLUTE_MIN_SIMILARITY * 100);
@@ -590,23 +590,23 @@ classdef SmartIdentityMatcher2 < matlab.apps.AppBase
             % Display results
             if confidence >= adaptiveThreshold
                 app.MatchLabel.Text = sprintf('IDENTIFIED: %s', app.userNames{bestIdx});
-                app.MatchLabel.FontColor = [0 0.6 0.2];
+                app.MatchLabel.FontColor = [0.4 1 0.6];
                 
                 if confidence >= 85
                     app.StatusLabel.Text = 'Strong match - Very high confidence';
-                    app.StatusLabel.FontColor = [0 0.6 0.2];
+                    app.StatusLabel.FontColor = [0.4 1 0.6];
                 elseif confidence >= 70
                     app.StatusLabel.Text = 'Good match - High confidence';
-                    app.StatusLabel.FontColor = [0 0.6 0.2];
+                    app.StatusLabel.FontColor = [0.4 1 0.6];
                 elseif confidence >= 60
                     app.StatusLabel.Text = 'Possible match - Moderate confidence (verify recommended)';
-                    app.StatusLabel.FontColor = [0.9 0.6 0];
+                    app.StatusLabel.FontColor = [1 0.9 0.3];
                 else
                     app.StatusLabel.Text = 'Weak match - Low confidence (manual verification required)';
-                    app.StatusLabel.FontColor = [0.9 0.5 0];
+                    app.StatusLabel.FontColor = [1 0.7 0.3];
                 end
                 
-                borderColor = [0 0.7 0.3];
+                borderColor = [0.3 0.8 0.5];
                 
                 imshow(app.userFaces{bestIdx}, 'Parent', app.FoundImageAxes);
                 app.FoundImageAxes.XColor = borderColor;
@@ -616,7 +616,7 @@ classdef SmartIdentityMatcher2 < matlab.apps.AppBase
                     'FontSize', 14, 'Color', borderColor);
             else
                 app.MatchLabel.Text = 'NO MATCH DETECTED';
-                app.MatchLabel.FontColor = [0.8 0.1 0.1];
+                app.MatchLabel.FontColor = [1 0.4 0.4];
                 
                 if confidence < ABSOLUTE_MIN_SIMILARITY * 100
                     app.StatusLabel.Text = sprintf('Unknown person (Best: %.1f%%)', confidence);
@@ -624,12 +624,12 @@ classdef SmartIdentityMatcher2 < matlab.apps.AppBase
                     app.StatusLabel.Text = sprintf('No confident match (Best: %.1f%% < %.1f%% threshold)', ...
                         confidence, adaptiveThreshold);
                 end
-                app.StatusLabel.FontColor = [0.8 0.1 0.1];
+                app.StatusLabel.FontColor = [1 0.4 0.4];
                 
                 cla(app.FoundImageAxes);
-                title(app.FoundImageAxes, 'Match Result - No Match', 'FontSize', 14, 'Color', [0.8 0.1 0.1]);
-                app.FoundImageAxes.XColor = [0.8 0.1 0.1];
-                app.FoundImageAxes.YColor = [0.8 0.1 0.1];
+                title(app.FoundImageAxes, 'Match Result - No Match', 'FontSize', 14, 'Color', [1 0.4 0.4]);
+                app.FoundImageAxes.XColor = [1 0.4 0.4];
+                app.FoundImageAxes.YColor = [1 0.4 0.4];
                 app.FoundImageAxes.LineWidth = 3;
             end
             
@@ -723,7 +723,7 @@ classdef SmartIdentityMatcher2 < matlab.apps.AppBase
         function viewDatabase(app)
             if isempty(app.userFaces)
                 app.StatusLabel.Text = 'Database is empty';
-                app.StatusLabel.FontColor = [0.9 0.5 0];
+                app.StatusLabel.FontColor = [1 0.7 0.3];
                 return;
             end
             
@@ -732,14 +732,14 @@ classdef SmartIdentityMatcher2 < matlab.apps.AppBase
             end
 
             imshow(app.userFaces{app.currentViewIndex}, 'Parent', app.FoundImageAxes);
-            app.FoundImageAxes.XColor = [0.2 0.4 0.8];
-            app.FoundImageAxes.YColor = [0.2 0.4 0.8];
+            app.FoundImageAxes.XColor = [0.4 0.7 1];
+            app.FoundImageAxes.YColor = [0.4 0.7 1];
             app.FoundImageAxes.LineWidth = 3;
             title(app.FoundImageAxes, sprintf('Database (%d/%d): %s', ...
                 app.currentViewIndex, length(app.userFaces), app.userNames{app.currentViewIndex}), ...
-                'FontSize', 14, 'Color', [0.2 0.4 0.8]);
+                'FontSize', 14, 'Color', [0.4 0.7 1]);
             app.StatusLabel.Text = sprintf('Viewing database entry %d of %d', app.currentViewIndex, length(app.userFaces));
-            app.StatusLabel.FontColor = [0.2 0.4 0.8];
+            app.StatusLabel.FontColor = [0.4 0.7 1];
             
             app.currentViewIndex = app.currentViewIndex + 1;
         end
@@ -761,7 +761,7 @@ classdef SmartIdentityMatcher2 < matlab.apps.AppBase
             
             app.loadData();
             app.updateDatabaseCount();
-            app.StatusLabel.FontColor = [0.2 0.4 0.8];
+            app.StatusLabel.FontColor = [0.4 0.7 1];
         end
         
         function RegisterBtnPushed(app, ~)
@@ -784,45 +784,59 @@ classdef SmartIdentityMatcher2 < matlab.apps.AppBase
     % Component initialization
     methods (Access = private)
         function createComponents(app)
+            % Dark mode color scheme
+            darkBg = [0.12 0.12 0.15];
+            darkerBg = [0.08 0.08 0.10];
+            panelBg = [0.15 0.15 0.18];
+            headerBg = [0.10 0.10 0.13];
+            accentCyan = [0.3 0.8 0.9];
+            accentGreen = [0.4 1 0.6];
+            accentRed = [1 0.4 0.4];
+            accentPurple = [0.7 0.5 1];
+            textColor = [0.9 0.9 0.9];
+            
             app.UIFigure = uifigure('Position', [100 100 1000 650]);
-            app.UIFigure.Name = 'Smart Identity Matcher';
-            app.UIFigure.Color = [0.92 0.94 0.98];
+            app.UIFigure.Name = 'Facial Recognition System';
+            app.UIFigure.Color = darkBg;
             
             app.MainPanel = uipanel(app.UIFigure);
             app.MainPanel.Position = [15 15 970 620];
-            app.MainPanel.BackgroundColor = [1 1 1];
+            app.MainPanel.BackgroundColor = darkerBg;
             app.MainPanel.BorderType = 'none';
             
             app.HeaderPanel = uipanel(app.MainPanel);
             app.HeaderPanel.Position = [20 520 930 80];
-            app.HeaderPanel.BackgroundColor = [0.15 0.25 0.45];
+            app.HeaderPanel.BackgroundColor = headerBg;
             app.HeaderPanel.BorderType = 'none';
             
             app.TitleLabel = uilabel(app.HeaderPanel);
             app.TitleLabel.Position = [30 35 870 30];
-            app.TitleLabel.Text = 'SMART IDENTITY MATCHER';
+            app.TitleLabel.Text = 'FACIAL RECOGNITION SYSTEM';
             app.TitleLabel.FontSize = 22;
             app.TitleLabel.FontWeight = 'bold';
-            app.TitleLabel.FontColor = [1 1 1];
+            app.TitleLabel.FontColor = accentCyan;
             app.TitleLabel.HorizontalAlignment = 'center';
             
             app.SubtitleLabel = uilabel(app.HeaderPanel);
             app.SubtitleLabel.Position = [30 10 870 20];
-            app.SubtitleLabel.Text = 'Advanced Identity Recognition & Database System';
+            app.SubtitleLabel.Text = 'Advanced Deep Learning Identity Recognition & Database Management';
             app.SubtitleLabel.FontSize = 12;
-            app.SubtitleLabel.FontColor = [0.8 0.85 0.9];
+            app.SubtitleLabel.FontColor = [0.6 0.6 0.65];
             app.SubtitleLabel.HorizontalAlignment = 'center';
             
             app.ControlPanel = uipanel(app.MainPanel);
             app.ControlPanel.Position = [20 450 930 60];
-            app.ControlPanel.BackgroundColor = [0.95 0.97 1];
+            app.ControlPanel.BackgroundColor = panelBg;
             app.ControlPanel.BorderType = 'line';
+            app.ControlPanel.BorderWidth = 1;
+            app.ControlPanel.HighlightColor = [0.25 0.25 0.28];
             
             app.RegisterBtn = uibutton(app.ControlPanel, 'push');
             app.RegisterBtn.Position = [50 15 160 30];
             app.RegisterBtn.Text = 'Register Identity';
             app.RegisterBtn.FontSize = 11;
-            app.RegisterBtn.BackgroundColor = [0.2 0.7 0.4];
+            app.RegisterBtn.FontWeight = 'bold';
+            app.RegisterBtn.BackgroundColor = [0 0 0];
             app.RegisterBtn.FontColor = [1 1 1];
             app.RegisterBtn.ButtonPushedFcn = createCallbackFcn(app, @RegisterBtnPushed, true);
             
@@ -830,7 +844,8 @@ classdef SmartIdentityMatcher2 < matlab.apps.AppBase
             app.ScanBtn.Position = [240 15 160 30];
             app.ScanBtn.Text = 'Scan Photo';
             app.ScanBtn.FontSize = 11;
-            app.ScanBtn.BackgroundColor = [0.15 0.5 0.85];
+            app.ScanBtn.FontWeight = 'bold';
+            app.ScanBtn.BackgroundColor = [0 0 0];
             app.ScanBtn.FontColor = [1 1 1];
             app.ScanBtn.ButtonPushedFcn = createCallbackFcn(app, @ScanBtnPushed, true);
             
@@ -838,7 +853,8 @@ classdef SmartIdentityMatcher2 < matlab.apps.AppBase
             app.IdentifyBtn.Position = [430 15 160 30];
             app.IdentifyBtn.Text = 'Identify';
             app.IdentifyBtn.FontSize = 11;
-            app.IdentifyBtn.BackgroundColor = [0.85 0.3 0.15];
+            app.IdentifyBtn.FontWeight = 'bold';
+            app.IdentifyBtn.BackgroundColor = [0 0 0];
             app.IdentifyBtn.FontColor = [1 1 1];
             app.IdentifyBtn.ButtonPushedFcn = createCallbackFcn(app, @IdentifyBtnPushed, true);
             
@@ -846,64 +862,77 @@ classdef SmartIdentityMatcher2 < matlab.apps.AppBase
             app.ViewDatabaseBtn.Position = [620 15 160 30];
             app.ViewDatabaseBtn.Text = 'View Database';
             app.ViewDatabaseBtn.FontSize = 11;
-            app.ViewDatabaseBtn.BackgroundColor = [0.6 0.4 0.8];
+            app.ViewDatabaseBtn.FontWeight = 'bold';
+            app.ViewDatabaseBtn.BackgroundColor = [0 0 0];
             app.ViewDatabaseBtn.FontColor = [1 1 1];
             app.ViewDatabaseBtn.ButtonPushedFcn = createCallbackFcn(app, @ViewDatabaseBtnPushed, true);
             
             app.DisplayPanel = uipanel(app.MainPanel);
             app.DisplayPanel.Position = [20 120 930 320];
-            app.DisplayPanel.BackgroundColor = [0.98 0.99 1];
+            app.DisplayPanel.BackgroundColor = panelBg;
             app.DisplayPanel.BorderType = 'line';
+            app.DisplayPanel.BorderWidth = 1;
+            app.DisplayPanel.HighlightColor = [0.25 0.25 0.28];
             
             app.ScanImageAxes = uiaxes(app.DisplayPanel);
             app.ScanImageAxes.Position = [60 60 380 200];
-            title(app.ScanImageAxes, 'Scanned Photo', 'FontSize', 14, 'Color', [0.3 0.3 0.3]);
+            app.ScanImageAxes.Color = darkerBg;
+            title(app.ScanImageAxes, 'Scanned Photo', 'FontSize', 14, 'Color', textColor);
             app.ScanImageAxes.XTick = [];
             app.ScanImageAxes.YTick = [];
+            app.ScanImageAxes.XColor = [0.3 0.3 0.35];
+            app.ScanImageAxes.YColor = [0.3 0.3 0.35];
             app.ScanImageAxes.Box = 'on';
             
             app.FoundImageAxes = uiaxes(app.DisplayPanel);
             app.FoundImageAxes.Position = [490 60 380 200];
-            title(app.FoundImageAxes, 'Match Result', 'FontSize', 14, 'Color', [0.3 0.3 0.3]);
+            app.FoundImageAxes.Color = darkerBg;
+            title(app.FoundImageAxes, 'Match Result', 'FontSize', 14, 'Color', textColor);
             app.FoundImageAxes.XTick = [];
             app.FoundImageAxes.YTick = [];
+            app.FoundImageAxes.XColor = [0.3 0.3 0.35];
+            app.FoundImageAxes.YColor = [0.3 0.3 0.35];
             app.FoundImageAxes.Box = 'on';
             
             app.InfoPanel = uipanel(app.MainPanel);
             app.InfoPanel.Position = [20 20 930 90];
-            app.InfoPanel.BackgroundColor = [0.96 0.98 0.96];
+            app.InfoPanel.BackgroundColor = panelBg;
             app.InfoPanel.BorderType = 'line';
+            app.InfoPanel.BorderWidth = 1;
+            app.InfoPanel.HighlightColor = [0.25 0.25 0.28];
             
             app.StatusLabel = uilabel(app.InfoPanel);
             app.StatusLabel.Position = [30 55 870 20];
             app.StatusLabel.Text = 'System initializing...';
             app.StatusLabel.FontSize = 13;
             app.StatusLabel.FontWeight = 'bold';
+            app.StatusLabel.FontColor = textColor;
             
             app.MatchLabel = uilabel(app.InfoPanel);
             app.MatchLabel.Position = [30 30 600 20];
             app.MatchLabel.Text = '';
             app.MatchLabel.FontSize = 15;
             app.MatchLabel.FontWeight = 'bold';
+            app.MatchLabel.FontColor = textColor;
             
             app.ConfidenceLabel = uilabel(app.InfoPanel);
             app.ConfidenceLabel.Position = [30 5 400 20];
             app.ConfidenceLabel.Text = '';
             app.ConfidenceLabel.FontSize = 12;
-            app.ConfidenceLabel.FontColor = [0.4 0.4 0.4];
+            app.ConfidenceLabel.FontColor = [0.6 0.6 0.65];
             
             app.DatabaseCountLabel = uilabel(app.InfoPanel);
             app.DatabaseCountLabel.Position = [650 5 250 20];
             app.DatabaseCountLabel.Text = 'Database: 0 identities';
             app.DatabaseCountLabel.FontSize = 12;
-            app.DatabaseCountLabel.FontColor = [0.2 0.4 0.8];
+            app.DatabaseCountLabel.FontColor = accentCyan;
             app.DatabaseCountLabel.HorizontalAlignment = 'right';
         end
     end
 
     % App creation and deletion
     methods (Access = public)
-        function app = SmartIdentityMatcher2
+        function app = FacialRecognition
             createComponents(app)
             registerApp(app, app.UIFigure)
             runStartupFcn(app, @startupFcn)
