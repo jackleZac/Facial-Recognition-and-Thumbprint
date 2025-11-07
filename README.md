@@ -238,7 +238,7 @@ if qualityScore >= 50  % Increase for stricter quality requirements
 ```
 smart-identity-matcher/
 ├── images                      # Store your images here
-├── FacialRecognition.m         # Main application class
+├── FacialRecognition.m         # Main application class (Facial Recognition + Thumbprint)
 ├── identityData.mat            # Database file (auto-generated)
 └── README.md                   # This file
 ```
@@ -304,6 +304,7 @@ This project is licensed under the MIT License - see LICENSE file for details.
 ## 👤 Author
 
 (https://github.com/jackleZac)
+(https://github.com/Spaceling03)
 
 ## 🙏 Acknowledgments
 
