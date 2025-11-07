@@ -238,7 +238,7 @@ if qualityScore >= 50  % Increase for stricter quality requirements
 ```
 smart-identity-matcher/
 ├── images                      # Store your images here
-├── FacialRecognition.m         # Main application class (Facial Recognition + Thumbprint)
+├── FacialRecognition.m         # Main application class (Facial Recognition + Thumbprint Verification)
 ├── identityData.mat            # Database file (auto-generated)
 └── README.md                   # This file
 ```
@@ -316,20 +316,13 @@ This project is licensed under the MIT License - see LICENSE file for details.
 ---
 
 ## User Interface
-**Step 1**: Run the main file
-<img width="1194" height="802" alt="ui-1" src="https://github.com/user-attachments/assets/19ea4929-f422-42ae-bbf4-0b69b517ef6a" />
+**Step 1**: Select and image and a thumbprint. Register an identity and view database to confirm 
+<img width="1192" height="924" alt="register-arif-aiman" src="https://github.com/user-attachments/assets/1a13eefb-1a84-4360-95a2-6fb8ca55015f" />
 
-**Step 2**: Register an identity and view database to confirm 
-<img width="1192" height="804" alt="ui-2" src="https://github.com/user-attachments/assets/35d504a5-166e-4ec1-98a3-5479279bbe3b" />
+**Step 2**: Choose a different image of the same person and click 'Scan Photo'. Click 'Identify' and it should return 'Identified'
+<img width="1920" height="1019" alt="scan-registered-face" src="https://github.com/user-attachments/assets/1078cb2e-44f1-480a-84e9-a7aacd45e7db" />
 
-**Step 3**: Choose a different image of the same person and click 'Scan Photo'
-<img width="1191" height="804" alt="ui-3" src="https://github.com/user-attachments/assets/9756be8e-1be5-4789-9135-397013ad96ef" />
-
-**Step 4**: Click 'Identify'. It should return 'Identified'
-<img width="1192" height="805" alt="ui-4" src="https://github.com/user-attachments/assets/90b76c67-5ef3-4064-a10c-079834c1f4c2" />
-
-**Step 5**: Try again with an image of different person. It should return 'No match detected'
-<img width="1195" height="801" alt="ui-5" src="https://github.com/user-attachments/assets/2357f695-f997-4688-b484-246f30d20a62" />
-
+**Step 3**: Try again with an image of different person and a different thumprint. It should return 'No match detected'
+<img width="1922" height="1018" alt="scan-unregistered-face" src="https://github.com/user-attachments/assets/ef845351-7652-4fd2-9d3e-451149171930" />
 
 **Note**: This system is designed for educational and research purposes. For production facial recognition systems, consider additional factors including privacy laws, consent requirements, and bias mitigation strategies.
