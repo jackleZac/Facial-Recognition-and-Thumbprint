@@ -1,8 +1,4 @@
 classdef FacialRecognition < matlab.apps.AppBase
-    % FACIAL + FINGERPRINT RECOGNITION SYSTEM
-    % original facial pipeline preserved, fingerprint + fusion added,
-    % listbox-based database browser added.
-
     % =====================================================================
     % UI PROPERTIES
     % =====================================================================
@@ -133,7 +129,7 @@ classdef FacialRecognition < matlab.apps.AppBase
                 end
             end
 
-            features = [hogFeatures, lbpFeatures, surfFeatures, histFeatures'];
+            features = [hogFeatures, lbpFeatures, surfFeatures, histFeatures];
 
             if ~isempty(features)
                 features = features / (norm(features) + eps);
@@ -298,10 +294,10 @@ classdef FacialRecognition < matlab.apps.AppBase
         % SAVE / LOAD (extended to include fingerprints)
         % ================================================================
         function saveData(app)
-            userFaces = app.userFaces;
-            userNames = app.userNames;
-            userFaceFeatures = app.userFaceFeatures;
-            userFingerprints = app.userFingerprints;
+            app.userFaces = 'userFaces';
+            app.userNames = 'userNames';
+            app.userFaceFeatures = 'userFaceFeatures';
+            app.userFingerprints = 'userFingerprints;
             save(app.dataFile, 'userFaces', 'userNames', 'userFaceFeatures', 'userFingerprints');
         end
 
