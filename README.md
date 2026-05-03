@@ -1,12 +1,7 @@
 # Smart Identity Matcher
+A facial recognition system built in MATLAB that can identify individuals across different photos using deep learning and traditional computer vision techniques.
 
-A sophisticated facial recognition system built in MATLAB that can identify individuals across different photos using deep learning and traditional computer vision techniques.
-
-![MATLAB](https://img.shields.io/badge/MATLAB-R2020a+-orange.svg)
-![License](https://img.shields.io/badge/license-MIT-blue.svg)
-![Status](https://img.shields.io/badge/status-active-success.svg)
-
-## 🌟 Features
+## Features
 
 ### Core Capabilities
 - **Multi-Photo Recognition**: Identifies the same person across different photos with varying:
@@ -34,7 +29,7 @@ A sophisticated facial recognition system built in MATLAB that can identify indi
 - Database browsing functionality
 - Detailed match information display
 
-## 📋 Requirements
+## Requirements
 
 ### Required MATLAB Toolboxes
 - Computer Vision Toolbox
@@ -47,7 +42,7 @@ A sophisticated facial recognition system built in MATLAB that can identify indi
 ### MATLAB Version
 - MATLAB R2020a or later
 
-## 🚀 Installation
+## Installation
 
 1. **Clone or download** this repository:
 ```bash
@@ -65,7 +60,7 @@ addpath('path/to/Facial-Recognition-and-Thumbprint')
 app = FacialRecognition
 ```
 
-## 📖 Usage Guide
+## Usage Guide
 
 ### 1. Register Identities
 
@@ -104,7 +99,7 @@ Click **"View Database"** to browse registered identities:
 - Shows name and position in database
 - Useful for verification and management
 
-## 🎯 How It Works
+## How It Works
 
 ### Feature Extraction Pipeline
 
@@ -166,7 +161,7 @@ similarity = (cosine * 0.7) + (euclidean * 0.2) + (correlation * 0.1)
 7. Display result or reject as unknown
 ```
 
-## ⚙️ Configuration
+## Configuration
 
 ### Adjusting Thresholds
 
@@ -189,7 +184,7 @@ Edit `detectAndCropFaceEnhanced` to adjust quality standards:
 if qualityScore >= 50  % Increase for stricter quality requirements
 ```
 
-## 📊 Performance Characteristics
+## Performance Characteristics
 
 ### Accuracy Metrics
 
@@ -209,7 +204,7 @@ if qualityScore >= 50  % Increase for stricter quality requirements
 - **55-59%**: Weak match - Low confidence (manual verification required)
 - **<55%**: No match - Rejected
 
-## 🔧 Troubleshooting
+## Troubleshooting
 
 ### "AlexNet not available" message
 - System automatically uses traditional features
@@ -233,7 +228,7 @@ if qualityScore >= 50  % Increase for stricter quality requirements
 - Decrease thresholds slightly
 - Re-register with better quality photo
 
-## 📁 File Structure
+## File Structure
 
 ```
 smart-identity-matcher/
@@ -243,7 +238,7 @@ smart-identity-matcher/
 └── README.md                   # This file
 ```
 
-## 🎓 Technical Details
+## Technical Details
 
 ### Feature Vector Dimensions
 - **AlexNet**: 4096 dimensions (fc7 layer)
@@ -264,7 +259,7 @@ userNames         % Cell array of identity names
 userFaceFeatures  % Cell array of feature vectors
 ```
 
-## 🚦 Best Practices
+## Best Practices
 
 ### For Registration
 1. ✅ Use clear, well-lit photos
@@ -280,12 +275,12 @@ userFaceFeatures  % Cell array of feature vectors
 4. ✅ Single person in frame (or clear main subject)
 
 ### Database Management
-1. 🗑️ Re-register if photo quality was poor
-2. 📸 Use consistent photo conditions when possible
-3. 💾 Backup `identityData.mat` regularly
-4. 🔄 Update database with better photos as available
+1. Re-register if photo quality was poor
+2. Use consistent photo conditions when possible
+3. Backup `identityData.mat` regularly
+4. Update database with better photos as available
 
-## 🔮 Future Enhancements
+## Future Enhancements
 
 Potential improvements:
 - [ ] Multiple photos per identity
@@ -297,16 +292,12 @@ Potential improvements:
 - [ ] Batch registration mode
 - [ ] Integration with external databases
 
-## 📄 License
-
-This project is licensed under the MIT License - see LICENSE file for details.
-
-## 👤 Author
+## Author
 
 (https://github.com/jackleZac)
 (https://github.com/Spaceling03)
 
-## 🙏 Acknowledgments
+## Acknowledgments
 
 - MATLAB Computer Vision Toolbox documentation
 - AlexNet pre-trained model (ImageNet)
